@@ -87,7 +87,7 @@ public suspend fun getFileContents(
                 modified = modified.replace(Regex("[0-9]"), "")
             }
             if (removeSpaces) {
-                modified = modified.replace(" ", "")
+                modified = modified.trim()
             }
             map[modified.length]?.add(modified) ?: error("$modified was supposedly longer than the generate max length of 34???")
         }

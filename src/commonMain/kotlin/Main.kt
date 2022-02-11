@@ -11,6 +11,7 @@ import com.soywiz.korio.stream.writeString
 import kotlinx.cinterop.toKString
 import kotlinx.cli.ArgParser
 import kotlinx.cli.ArgType
+import kotlinx.cli.default
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
@@ -23,6 +24,8 @@ public fun main(args: Array<String>) {
         val parser = ArgParser("LengthMapper")
 
         val fileName by parser.option(ArgType.String, "file", "f", "Points to the file used in this operation")
+        val removeNumbers by parser.option(ArgType.Boolean, "remove-numbers", "rn", "Remove numbers from the file name").default(false)
+        val removeSpaces by parser.option(ArgType.Boolean, "remove-spaces", "rs", "Remove spaces from the file name").default(false)
         val output by parser.option(ArgType.String, "output", "o", "Where to output the new file to.")
         parser.parse(args)
 
@@ -31,7 +34,7 @@ public fun main(args: Array<String>) {
         require(file.exists()) { "This file doesn't exist." }
         require(file.isFile()) { "The selected file must be a text file." }
 
-        val contents = async { getFileContents(file) }
+        val contents = async { getFileContents(file, removeNumbers, removeSpaces) }
 
         val newFile: Deferred<AsyncStream> = async {
             val outputFile = if (output != null) {
@@ -68,14 +71,25 @@ public fun main(args: Array<String>) {
     }
 }
 
-public suspend fun getFileContents(file: VfsFile): MutableMap<Int, MutableSet<String>> {
+public suspend fun getFileContents(
+    file: VfsFile,
+    removeNumbers: Boolean,
+    removeSpaces: Boolean
+): MutableMap<Int, MutableSet<String>> {
     val map = mutableMapOf<Int, MutableSet<String>>()
     for (num in 1..34) {
         map[num] = mutableSetOf()
     }
     file.openInputStream().use {
         readAll().toKString().splitToSequence('\n').forEach { word ->
-            map[word.length]?.add(word) ?: error("$word was supposedly longer than the generate max length of 34???")
+            var modified = word
+            if (removeNumbers) {
+                modified = modified.replace(Regex("[0-9]"), "")
+            }
+            if (removeSpaces) {
+                modified = modified.replace(" ", "")
+            }
+            map[modified.length]?.add(modified) ?: error("$modified was supposedly longer than the generate max length of 34???")
         }
     }
     return map
